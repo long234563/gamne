@@ -15,67 +15,176 @@ jobs:
     timeout-minutes: 30
 
     steps:
+
+      # ==========================================
+      # 1. Lay code tu GitHub Repository
+      # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      # ==========================================
+      # 2. Cai Node.js
+      # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
 
+      # ==========================================
+      # 3. Cai Java JDK
+      # ==========================================
       - name: Setup Java JDK 21
         uses: actions/setup-java@v5
         with:
           distribution: "zulu"
           java-version: "21"
 
+      # ==========================================
+      # 4. Cai Android SDK
+      # ==========================================
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
+      # ==========================================
+      # 5. Tim file HTML va tao Android Project
+      # ==========================================
       - name: Convert HTML to Android Project
         shell: bash
         run: |
-          echo "=== Danh sach file trong repo ==="
+          echo "======================================"
+          echo "DANH SACH FILE TRONG REPOSITORY"
+          echo "======================================"
+
           ls -la
+
+          echo ""
+          echo "Dang tim file HTML..."
 
           HTML_FILE=$(find . -maxdepth 1 -type f -iname "*.html" | head -n 1)
 
           if [ -z "$HTML_FILE" ]; then
-            echo "ERROR: Khong tim thay file HTML!"
+            echo "======================================"
+            echo "ERROR: KHONG TIM THAY FILE HTML"
+            echo "======================================"
             exit 1
           fi
 
-          echo "Tim thay game: $HTML_FILE"
+          echo "======================================"
+          echo "TIM THAY GAME:"
+          echo "$HTML_FILE"
+          echo "======================================"
 
           mkdir -p "$RUNNER_TEMP/hac-anh-build/www"
 
-          cp "$HTML_FILE" "$RUNNER_TEMP/hac-anh-build/www/index.html"
+          cp "$HTML_FILE" \
+             "$RUNNER_TEMP/hac-anh-build/www/index.html"
 
           cd "$RUNNER_TEMP/hac-anh-build"
 
+          echo ""
+          echo "Khoi tao Node project..."
+
           npm init -y
 
-          npm install --save-exact @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
+          echo ""
+          echo "Cai Capacitor..."
 
-          npx cap init "Game Cua Long" "com.long.gamecualong" --web-dir www
+          npm install --save-exact \
+            @capacitor/core@8 \
+            @capacitor/cli@8 \
+            @capacitor/android@8
+
+          echo ""
+          echo "Khoi tao Game Cua Long..."
+
+          npx cap init \
+            "Game Cua Long" \
+            "com.gamecualong.app" \
+            --web-dir www
+
+          echo ""
+          echo "Tao Android project..."
 
           npx cap add android
 
+          echo ""
+          echo "Dong bo game vao Android..."
+
           npx cap sync android
 
+          echo ""
+          echo "Android project da duoc tao."
+
+      # ==========================================
+      # 6. Kiem tra Android Project
+      # ==========================================
+      - name: Check Android Project
+        shell: bash
+        run: |
+          echo "======================================"
+          echo "ANDROID PROJECT"
+          echo "======================================"
+
+          ls -la "$RUNNER_TEMP/hac-anh-build/android"
+
+          echo ""
+          echo "Kiem tra Gradle Wrapper..."
+
+          test -f "$RUNNER_TEMP/hac-anh-build/android/gradlew"
+
+          echo "gradlew OK"
+
+      # ==========================================
+      # 7. Build APK
+      # ==========================================
       - name: Build APK with Gradle
         working-directory: ${{ runner.temp }}/hac-anh-build/android
+        shell: bash
         run: |
+          echo "======================================"
+          echo "BUILD GAME CUA LONG"
+          echo "======================================"
+
           chmod +x ./gradlew
+
           ./gradlew --no-daemon assembleDebug
 
+      # ==========================================
+      # 8. Kiem tra APK
+      # ==========================================
+      - name: Check APK
+        shell: bash
+        run: |
+          APK="$RUNNER_TEMP/hac-anh-build/android/app/build/outputs/apk/debug/app-debug.apk"
+
+          echo "Dang kiem tra APK..."
+
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: Khong tim thay APK!"
+            exit 1
+          fi
+
+          echo "APK build thanh cong:"
+          ls -lh "$APK"
+
+      # ==========================================
+      # 9. Doi ten APK
+      # ==========================================
       - name: Rename APK
         shell: bash
         run: |
-          cp "$RUNNER_TEMP/hac-anh-build/android/app/build/outputs/apk/debug/app-debug.apk" "$RUNNER_TEMP/Game-Cua-Long.apk"
+          cp \
+            "$RUNNER_TEMP/hac-anh-build/android/app/build/outputs/apk/debug/app-debug.apk" \
+            "$RUNNER_TEMP/Game-Cua-Long.apk"
 
+          echo "Da tao:"
+          ls -lh "$RUNNER_TEMP/Game-Cua-Long.apk"
+
+      # ==========================================
+      # 10. Upload APK len GitHub Actions
+      # ==========================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
