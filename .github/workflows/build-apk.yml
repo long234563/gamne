@@ -1,36 +1,98 @@
-name: Build Long Linh APK
+name: Build Game Cua Long APK
 
-on:
-  workflow_dispatch:
+"on":
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      # 1. Lấy source code từ repository
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      # 2. Cài Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
-          distribution: temurin
-          java-version: '17'
+          node-version: '22'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      # 3. Cài Java
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '21'
 
-      - name: Grant execute permission
-        run: chmod +x gradlew
+      # 4. Cài Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      # 5. Chuyển game HTML thành project Android
+      - name: Create Android Project
+        shell: bash
+        run: |
+          echo "Checking index.html..."
 
-      - name: Upload APK
+          test -f index.html
+
+          echo "Creating temporary project..."
+
+          mkdir -p "$RUNNER_TEMP/game-cua-long/www"
+
+          cp index.html "$RUNNER_TEMP/game-cua-long/www/index.html"
+
+          cd "$RUNNER_TEMP/game-cua-long"
+
+          npm init -y
+
+          echo "Installing Capacitor..."
+
+          npm install --save-exact \
+            @capacitor/core@8 \
+            @capacitor/cli@8 \
+            @capacitor/android@8
+
+          echo "Creating Game Cua Long..."
+
+          npx cap init "Game Cua Long" "com.long.gamecualong" --web-dir www
+
+          echo "Creating Android project..."
+
+          npx cap add android
+
+          npx cap sync android
+
+      # 6. Build APK
+      - name: Build Game Cua Long APK
+        working-directory: ${{ runner.temp }}/game-cua-long/android
+        run: |
+          chmod +x ./gradlew
+
+          ./gradlew --no-daemon assembleDebug
+
+      # 7. Đổi tên APK
+      - name: Rename APK
+        shell: bash
+        run: |
+          cp \
+            "$RUNNER_TEMP/game-cua-long/android/app/build/outputs/apk/debug/app-debug.apk" \
+            "$RUNNER_TEMP/Game-Cua-Long.apk"
+
+      # 8. Upload APK để tải về
+      - name: Upload Game Cua Long APK
         uses: actions/upload-artifact@v4
         with:
-          name: Long-Linh-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Game-Cua-Long-APK
+          path: ${{ runner.temp }}/Game-Cua-Long.apk
+          if-no-files-found: error
+          retention-days: 7
