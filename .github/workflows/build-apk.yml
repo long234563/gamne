@@ -42,20 +42,18 @@ jobs:
           cd "$RUNNER_TEMP/hac-anh-build"
           npm init -y
           npm install --save-exact @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8
-          npx cap init "Game Cua Long" "com.long.gamecualong" --web-dir www
+          npx cap init "My Game" "com.mygame.shadow" --web-dir www
           npx cap add android
           npx cap sync android
-
       - name: Build APK with Gradle
         working-directory: ${{ runner.temp }}/hac-anh-build/android
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Game-Cua-Long-APK
+          name: game-apk
           path: ${{ runner.temp }}/hac-anh-build/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
